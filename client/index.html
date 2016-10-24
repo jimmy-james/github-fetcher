@@ -1,0 +1,106 @@
+<html>
+<head>
+  <title>GitHub Fetcher</title>
+</head>
+<body>
+
+<h2>GitHub Fetcher</h2>
+<form class="repo-fetcher">
+  <h3>Enter a GitHub username to fetch:</h3>
+  <input type="text" id="gitHandle" name="username" placeholder="Github Username"/>
+
+  <button type="submit">Fetch User's Repos</button>
+</form>
+
+<table class="top-repos"></table>
+  <div id="repo-list"> </div>
+
+<script src="https://code.jquery.com/jquery-2.2.0.js"></script>
+<script>
+
+$("form.repo-fetcher").on('submit', function(e) {
+  e.preventDefault();
+  // set variables for username, user's url, and user's repo url.
+  // username for the value passed into input.
+  // userUrl to requestJSON from Github.
+  // repoUrl to requestRepo from Github.
+  var username = $('#gitHandle').val();
+  var userUrl   = 'https://api.github.com/users/' + username;
+  var repoUrl  = 'https://api.github.com/users/' + username + '/repos';
+  var gitRepo;
+  var stuff;
+
+  // make API call to Github using userUrl.
+  // from it, get username, profile's url, and followers.
+  requestJSON(userUrl, function(json) {
+    var username   = json.login;
+    var profileUrl = json.html_url;
+    var stargazers = json.followers;
+    console.log('JSON ',json);
+
+    // attach title and repoList div to gitRepo;
+    gitRepo = '<h2>' + ' <span class="smallname"><a href="' + profileUrl + '" target="_blank">' + 'Searched User : ' + username + '</a></span></h2>';
+
+  // declare global variable for repos.
+  var repositories;
+  var stuff;
+  $.getJSON(repoUrl, function(repo) {
+    repositories = repo;
+    getReposInOrder();
+    stuff = {
+      username: username,
+      url: repoUrl,
+      repos: repositories
+    };
+    addToDb(stuff);
+  });
+
+  });
+
+  var addToDb = function(data) {
+    return $.ajax({
+      type: 'POST',
+      url: '/repos/import',
+      contentType: 'application/json',
+      data: JSON.stringify(data),
+    })
+    .then(function(gitData) {
+      console.log('GETTING GIT DATA!');
+    });
+  };
+
+  var getReposInOrder = function() {
+    return $.ajax({
+      type: 'GET',
+      url: '/repos'
+    })
+    .then(function(res) {
+      if(res.length === 0) {
+        gitRepo += '<p>Sorry, No Dice!</p></div>';
+      }
+      else {
+        gitRepo += '<h2><strong>Repositories:</strong></h2> <ul>';
+        $.each(res, function(index) {
+          gitRepo += '<li><a href="' + res[index].url + '" target="_blank">' + res[index].owner + ' | ' + res[index].name + ' | FOLLOWERS ' + res[index].stargazers_count + '</a></li>';
+        });
+        gitRepo += '</ul></div>';
+      }
+      $('#repo-list').html(gitRepo);
+      console.log("REPOS IN ORDER ", res);
+    });
+  };
+
+});
+
+function requestJSON(url, callback) {
+  $.ajax({
+    url: url,
+    complete: function(xhr) {
+      callback.call(null, xhr.responseJSON);
+    }
+  });
+};
+
+</script>
+</body>
+</html>
